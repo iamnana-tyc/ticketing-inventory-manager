@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: gateway
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8092/realms/ticketing-realm-security
+
+server:
+  port: 8091
+
+
+keycloak:
+  auth:
+    jwt-set-uri: http://localhost:8092/realms/ticketing-realm-security/protocol/openid-connect/certs
