@@ -90,3 +90,6 @@ mongodb-data/
 *.swp
 *.bak
 *.orig
+
+# Docker persistent database volumes
+**/volume-data/
