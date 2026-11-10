@@ -30,6 +30,9 @@ inventory:
     url: http://localhost:8080/api/v1/inventory
 
 
-##### KAFKA CONFIGURATION
-
-
+### OPENAPI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
