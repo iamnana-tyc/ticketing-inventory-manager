@@ -21,4 +21,14 @@ public class InventoryServiceRoute {
                 .before(BeforeFilterFunctions.uri("http://localhost:8080"))
                 .build();
     }
+
+    @Bean
+    public RouterFunction<ServerResponse> inventoryServiceApiDocs(){
+        return GatewayRouterFunctions.route("inventory-service-api-docs")
+                .route(RequestPredicates.path("/docs/inventoryservice/v3/api-docs"),
+                        HandlerFunctions.http())
+                .before(BeforeFilterFunctions.uri("http://localhost:8080"))
+                .before(BeforeFilterFunctions.setPath("/v3/api-docs"))
+                .build();
+    }
 }
