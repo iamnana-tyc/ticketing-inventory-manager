@@ -1,5 +1,7 @@
 package com.iamnana.Inventoryservice.service.implementation;
 
+import com.iamnana.Inventoryservice.exception.InsufficientCapacityException;
+import com.iamnana.Inventoryservice.exception.ResourceNotFoundException;
 import com.iamnana.Inventoryservice.model.Event;
 import com.iamnana.Inventoryservice.model.Venue;
 import com.iamnana.Inventoryservice.repository.EventRepository;
@@ -11,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -44,17 +47,16 @@ public class EventServiceImpl implements EventService {
 
     @Override
     public VenueInventoryResponse getVenueInformation(Long venueId) {
-        Venue venue = venueRepository.findById(venueId).orElse(null);
+        Venue venue = venueRepository.findById(venueId)
+                .orElseThrow(() -> new ResourceNotFoundException("Venue", venueId));
 
         return modelMapper.map(venue, VenueInventoryResponse.class);
     }
 
     @Override
     public EventInventoryResponse getEventInventory(Long eventId) {
-        Event event = eventRepository.findById(eventId).orElse(null);
-        if (event == null) {
-            throw new RuntimeException("Event not found");
-        }
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId));
 
         EventInventoryResponse eventInventoryResponse = new EventInventoryResponse();
 
@@ -68,8 +70,13 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
+    @Transactional
     public void updateEventCapacity(Long eventId, Long ticketsBooked) {
-        Event event = eventRepository.findById(eventId).orElse(null);
+        Event event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new ResourceNotFoundException("Event", eventId));
+        if (event.getLeftCapacity() < ticketsBooked) {
+            throw new InsufficientCapacityException(eventId, ticketsBooked, event.getLeftCapacity());
+        }
         event.setLeftCapacity(event.getLeftCapacity() -  ticketsBooked);
         eventRepository.saveAndFlush(event);
         log.info("Event capacity updated for event id: {} with tickets booked: {}", eventId, ticketsBooked);
