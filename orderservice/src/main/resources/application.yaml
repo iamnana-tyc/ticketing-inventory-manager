@@ -16,12 +16,19 @@ spring:
         format_sql: true
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
       group-id: order-service
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
       properties:
         spring:
+          deserializer:
+            value:
+              delegate:
+                class: org.springframework.kafka.support.serializer.JsonDeserializer
           json:
             type:
               mapping: bookingEvent:com.iamnana.bookingservice.event.BookingEvent
@@ -29,7 +36,7 @@ spring:
 
 inventory:
   service:
-    url: http://localhost:8080/api/v1//inventory
+    url: http://localhost:8080/api/v1/inventory
 
 server:
   port: 8082

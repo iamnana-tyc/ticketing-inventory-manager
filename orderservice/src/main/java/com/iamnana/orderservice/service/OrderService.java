@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -16,7 +17,10 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final InventoryServiceClient inventoryServiceClient;
 
+    // Transactional: if the inventory update fails, the order insert is rolled back,
+    // so a retry or dead-letter does not leave an order without its inventory change.
     @KafkaListener(topics = "booking", groupId = "order-service")
+    @Transactional
     public void orderEvent(BookingEvent bookingEvent){
         log.info("Received order event {}", bookingEvent);
 
