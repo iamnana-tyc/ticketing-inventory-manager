@@ -2,6 +2,8 @@ package com.iamnana.bookingservice.service.implementation;
 
 import com.iamnana.bookingservice.client.InventoryService;
 import com.iamnana.bookingservice.event.BookingEvent;
+import com.iamnana.bookingservice.exception.InsufficientInventoryException;
+import com.iamnana.bookingservice.exception.ResourceNotFoundException;
 import com.iamnana.bookingservice.model.Customer;
 import com.iamnana.bookingservice.repository.CustomerRepository;
 import com.iamnana.bookingservice.request.BookingRequest;
@@ -28,10 +30,7 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponse createBooking(BookingRequest request) {
         // checking that user exist
         Customer customer = customerRepository.findById(request.getUserId())
-                .orElse(null);
-        if (customer == null) {
-            throw new RuntimeException("User not found");
-        }
+                .orElseThrow(() -> new ResourceNotFoundException("Customer with id " + request.getUserId() + " not found"));
 
         // checking if there is enough inventory
         InventoryResponse inventoryResponse = inventoryService.getInventory(request.getEventId());
@@ -39,7 +38,8 @@ public class BookingServiceImpl implements BookingService {
 
         // checking if enough inventory
         if (inventoryResponse.getCapacity() < request.getTicketCount()){
-            throw new RuntimeException("Inventory less than requested capacity");
+            throw new InsufficientInventoryException(request.getEventId(), request.getTicketCount(),
+                    inventoryResponse.getCapacity());
         }
 
         // create booking

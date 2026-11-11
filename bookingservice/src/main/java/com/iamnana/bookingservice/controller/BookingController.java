@@ -3,6 +3,7 @@ package com.iamnana.bookingservice.controller;
 import com.iamnana.bookingservice.request.BookingRequest;
 import com.iamnana.bookingservice.response.BookingResponse;
 import com.iamnana.bookingservice.service.BookingService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,7 @@ public class BookingController {
     private final BookingService bookingService;
 
     @PostMapping("/book")
-    public ResponseEntity<BookingResponse> createBook(@RequestBody BookingRequest request){
+    public ResponseEntity<BookingResponse> createBook(@Valid @RequestBody BookingRequest request){
         BookingResponse response = bookingService.createBooking(request);
 
         return ResponseEntity.status(HttpStatus.CREATED)
