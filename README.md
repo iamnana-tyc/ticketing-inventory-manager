@@ -21,7 +21,6 @@ It's a compact, realistic example of patterns commonly used in production backen
 
 The system follows an event-driven microservices architecture,
 using synchronous HTTP communication and asynchronous Kafka messaging.
-
 ![Ticketing Inventory Manager Architecture](docs/architecture.png)
 
 ### Booking flow
