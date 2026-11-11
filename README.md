@@ -1,5 +1,8 @@
 # 🎟️ Ticketing Inventory Manager
 
+[![CI](https://github.com/iamnana-tyc/ticketing-inventory-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/iamnana-tyc/ticketing-inventory-manager/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 An event-driven ticketing backend built as four Spring Boot microservices. Customers browse events, book tickets through a secured API gateway, and the system processes each booking asynchronously over Kafka, creating an order and decrementing ticket inventory.
 
 **Stack:** Java 25 · Spring Boot 4.1 · Spring Cloud Gateway · Apache Kafka · PostgreSQL · Flyway · Keycloak (OAuth 2.0 / JWT) · Resilience4j · OpenAPI · Docker Compose
@@ -81,18 +84,12 @@ cd ticketing-inventory-manager
 
 ### 2. Configure environment variables
 
-Create `Inventoryservice/.env` (git-ignored):
-
-```env
-POSTGRES_USER=your_database_username
-POSTGRES_PASSWORD=your_database_password
-
-KEYCLOAK_DB_PASSWORD=your_keycloak_database_password
-KEYCLOAK_ADMIN=your_keycloak_admin_username
-KEYCLOAK_ADMIN_PASSWORD=your_keycloak_admin_password
+```bash
+cp Inventoryservice/.env.example Inventoryservice/.env   # then edit the values
+set -a; source Inventoryservice/.env; set +a             # exports them into this shell
 ```
 
-The services read `POSTGRES_USER` and `POSTGRES_PASSWORD` from their environment, so export both in the shell you start each service from.
+`.env` is git-ignored. The services read `POSTGRES_USER` and `POSTGRES_PASSWORD` from their environment, so run the services from the same shell (or export both in each terminal you use).
 
 ### 3. Start the infrastructure
 
@@ -102,7 +99,7 @@ docker compose -f Inventoryservice/docker-compose.yaml up -d
 
 This starts PostgreSQL (host port `5433`), Kafka and Zookeeper, Kafka UI (`8084`), Schema Registry (`8083`) and Keycloak with its own database (`8092`).
 
-> Keycloak is started with `--import-realm` from `Inventoryservice/docker/keycloak/realms`, and no realm file is committed. Create a realm named `ticketing-realm-security` in the Keycloak admin console (`http://localhost:8092`), or add your exported realm JSON to that folder.
+Keycloak imports the `ticketing-realm-security` realm from [`Inventoryservice/docker/keycloak/realms`](Inventoryservice/docker/keycloak/realms) on first start. It contains a public client `ticketing-demo-client` and a demo user (`demo` / `demo`). These are for local development only.
 
 ### 4. Run the services
 
@@ -121,11 +118,29 @@ After the migrations have run, apply [`database/sample.sql`](database/sample.sql
 
 ### 6. Call the API
 
-Get a token from Keycloak, then pass it to the gateway:
+Get a token for the demo user, then pass it to the gateway:
 
 ```bash
+TOKEN=$(curl -s -X POST http://localhost:8092/realms/ticketing-realm-security/protocol/openid-connect/token \
+  -d grant_type=password -d client_id=ticketing-demo-client \
+  -d username=demo -d password=demo | jq -r .access_token)
+
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8091/api/v1/inventory/events
+
+curl -X POST http://localhost:8091/api/v1/book \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"userId": 1, "eventId": 1, "ticketCount": 2}'
 ```
+
+(`jq` is optional; without it, copy the `access_token` value by hand.)
+
+## Tests
+
+```bash
+cd bookingservice && ./mvnw test      # same for Inventoryservice and orderservice
+```
+
+The unit tests use JUnit 5 and Mockito, with no infrastructure needed. They cover the booking rules (customer lookup, capacity check, total price, Kafka publish), the inventory capacity update (including overselling and the last-ticket edge case) and the order consumer (save, then reduce inventory, and failures propagating so Kafka can retry). The `contextLoads` tests need the Docker infrastructure and are opt-in: `RUN_INTEGRATION_TESTS=true ./mvnw test`. GitHub Actions builds and tests every service on each push and pull request.
 
 ## Design decisions
 
@@ -144,9 +159,9 @@ I'd rather be upfront about what's still a work in progress:
 - [ ] **Shared database.** All services currently use one PostgreSQL database, so they aren't fully independent. A database per service is the next step.
 - [ ] **Inventory race conditions.** The capacity check (booking service) and the decrement (order service) are separate steps with no locking. Concurrent bookings can oversell. Options are optimistic locking on `Event`, or a reservation step with a saga or compensation.
 - [ ] **Kafka idempotency.** Failed events are retried and then dead-lettered, but there is no idempotency key, so a redelivered message could still create a duplicate order.
-- [ ] **Tests.** Only context-load tests exist today. Unit tests for the service layer and Testcontainers integration tests (Postgres, Kafka) are planned.
+- [ ] **Integration tests.** The service layer has unit tests. Testcontainers tests (Postgres, Kafka) and a gateway security test are still to do.
 - [ ] **Configuration.** Service URLs are hard-coded to `localhost`, so service discovery or per-environment config is needed. The Kafka event class is also duplicated between booking and order services, and could move to a shared module.
-- [ ] **Containerise the services** and add a CI pipeline (build and test on every push).
+- [ ] **Containerise the services** (a Dockerfile per service and compose entries).
 
 ## Project structure
 
@@ -158,6 +173,10 @@ ticketing-inventory-manager/
 ├── orderservice/       # Kafka consumer + order persistence
 └── database/           # Sample data for local development
 ```
+
+## License
+
+[MIT](LICENSE)
 
 ## Author
 
